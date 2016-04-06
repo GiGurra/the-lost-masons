@@ -20,7 +20,8 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   var started = false
 
   implicit val projection = new World2DProjection(new RenderCenter {
-    override def position: Vec3 = Vec3(0.0,0.0,0.0)
+    override def position: Vec3 = Vec3()
+
     override def heading: Double = 0.0
   })
 
@@ -37,7 +38,31 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   override def render(): Unit = frame {
     updatePlayers()
     updateEnemies()
-    drawTitle()
+    projection.viewport(viewportSize = cameraSize, offs = cameraPos) {
+      drawGround()
+      drawEnemies()
+      drawPlayers()
+    }
+    projection.viewport(viewportSize = 2.0, offs = Vec2()) {
+      drawGui()
+      drawTitle()
+    }
+  }
+
+  def drawGround() = {
+
+  }
+
+  def drawEnemies() = {
+
+  }
+
+  def drawPlayers(): Unit = {
+
+  }
+
+  def drawGui() = {
+
   }
 
   def downloadPlayerInputs(): Future[Unit] = {
@@ -48,6 +73,32 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
       case e: FailedFastException =>
       case NonFatal(e) => logger.error(e, s"Failed to communicate with keyboard server")
     }.map(_ => ())
+  }
+
+  def cameraPos: Vec2 = {
+    val playerPositions = players.map(_.position)
+    if (playerPositions.nonEmpty) {
+      val minX = playerPositions.map(_.x).min
+      val maxX = playerPositions.map(_.x).max
+      val minY = playerPositions.map(_.y).min
+      val maxY = playerPositions.map(_.y).max
+      Vec3(0.5 * (minX + maxX), 0.5 * (minY + maxY), 0.0)
+    } else {
+      Vec3(0.0, 0.0, 0.0)
+    }
+  }
+
+  def cameraSize: Double = {
+    val playerPositions = players.map(_.position)
+    if (playerPositions.nonEmpty) {
+      val minX = playerPositions.map(_.x).min
+      val maxX = playerPositions.map(_.x).max
+      val minY = playerPositions.map(_.y).min
+      val maxY = playerPositions.map(_.y).max
+      math.max(2.0, math.max(maxX-minX,maxY-minY))
+    } else {
+      2.0
+    }
   }
 
   def updatePlayers() = {
