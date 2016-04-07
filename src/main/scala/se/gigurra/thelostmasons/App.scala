@@ -30,7 +30,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     val dt = 1.0 / 60.0
     updatePlayers(dt)
     updateEnemies(dt)
-    projection.viewport(viewportSize = cameraSize, offs = cameraPos) {
+    projection.viewport(viewportSize = cameraSize, offs = -cameraPos) {
       drawGround(dt)
       drawEnemies(dt)
       drawPlayers(dt)
@@ -56,7 +56,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
 
   def announceNewPlayer(newPlayer: Player): Unit = {
     // Do something nice..
-    logger.info(s"Player ${newPlayer} joined!")
+    logger.info(s"Player $newPlayer joined!")
   }
 
   def createNewPlayer(input: PlayerInput): Player = {
@@ -128,7 +128,11 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
 
   def drawPlayers(dt: Double): Unit = {
-
+    for ((name, player) <- players) {
+      at(player.position) {
+        rect(0.1, 0.1, typ = FILL, color = player.color)
+      }
+    }
   }
 
   def drawGui(dt: Double) = {
@@ -155,7 +159,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
       val maxX = playerPositions.map(_.x).max
       val minY = playerPositions.map(_.y).min
       val maxY = playerPositions.map(_.y).max
-      math.max(2.0, math.max(maxX-minX,maxY-minY))
+      math.max(2.0, math.max(maxX-minX,maxY-minY) * 1.25)
     } else {
       2.0
     }

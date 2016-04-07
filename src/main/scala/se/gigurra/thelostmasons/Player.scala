@@ -11,7 +11,7 @@ case class Player(name: String,
                   var input: PlayerInput,
                   var position: Vec2) {
 
-  val maxSpeed = 0.25
+  val maxSpeed = 0.75
 
   def velocity: Vec2 = keys2Velocity(input.keysPressed) * maxSpeed
 
