@@ -16,6 +16,8 @@ import scala.collection.mutable.ArrayBuffer
   */
 case class App(config: AppConfig, keyboardServer: RestClient) extends ApplicationAdapter with Logging {
 
+  @volatile private var inputSnapshot = Map.empty[String, DownloadedPlayerInput]
+
   val players = new ArrayBuffer[Player]
 
   override def create(): Unit = {
@@ -56,6 +58,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
 
   def downloadPlayerInputs(): Future[Unit] = {
     keyboardServer.get(s"${config.instance}", maxAge = Some(Duration.fromSeconds(5))).foreach { data =>
+      inputSnapshot = Json.read[Map[String, DownloadedPlayerInput]](data)
       println(data)
     }.onFailure {
       case e: Throttled =>
