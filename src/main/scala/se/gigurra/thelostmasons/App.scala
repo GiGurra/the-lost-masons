@@ -1,6 +1,7 @@
 package se.gigurra.thelostmasons
 
 import com.badlogic.gdx.ApplicationAdapter
+import com.badlogic.gdx.graphics.Color
 import com.twitter.finagle.FailedFastException
 import com.twitter.util.{Duration, Future, NonFatal}
 import se.gigurra.fingdx.util.{DefaultTimer, RestClient, Throttled}
@@ -9,16 +10,15 @@ import se.gigurra.fingdx.gfx.RenderContext._
 import se.gigurra.fingdx.gfx.{GfxConfig, RenderCenter, World2DProjection}
 import se.gigurra.fingdx.lmath.{Vec2, Vec3}
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable
+import scala.util.Random
 
 /**
   * Created by kjolh on 4/6/2016.
   */
 case class App(config: AppConfig, keyboardServer: RestClient) extends ApplicationAdapter with Logging {
 
-  @volatile private var inputSnapshot = Map.empty[String, DownloadedPlayerInput]
-
-  val players = new ArrayBuffer[Player]
+  val players = new mutable.HashMap[String, Player]
 
   override def create(): Unit = {
     DefaultTimer.fps(100) {
@@ -27,39 +27,26 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
 
   override def render(): Unit = frame {
-    updatePlayers()
-    updateEnemies()
+    val dt = 1.0 / 60.0
+    updatePlayers(dt)
+    updateEnemies(dt)
     projection.viewport(viewportSize = cameraSize, offs = cameraPos) {
-      drawGround()
-      drawEnemies()
-      drawPlayers()
+      drawGround(dt)
+      drawEnemies(dt)
+      drawPlayers(dt)
     }
     projection.viewport(viewportSize = 2.0, offs = Vec2()) {
-      drawGui()
-      drawTitle()
+      drawGui(dt)
+      drawTitle(dt)
     }
+    removeAndAnnounceDeadStuff(dt)
   }
 
-  def drawGround() = {
-
-  }
-
-  def drawEnemies() = {
-
-  }
-
-  def drawPlayers(): Unit = {
-
-  }
-
-  def drawGui() = {
-
-  }
+  ///////////////////////////////////////
 
   def downloadPlayerInputs(): Future[Unit] = {
     keyboardServer.get(s"${config.instance}", maxAge = Some(Duration.fromSeconds(5))).foreach { data =>
-      inputSnapshot = Json.read[Map[String, DownloadedPlayerInput]](data)
-      println(data)
+      networkInputSnapshots = Json.read[Map[String, DownloadedPlayerInput]](data)
     }.onFailure {
       case e: Throttled =>
       case e: FailedFastException =>
@@ -67,8 +54,89 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     }.map(_ => ())
   }
 
+  def announceNewPlayer(newPlayer: Player): Unit = {
+    // Do something nice..
+    logger.info(s"Player ${newPlayer} joined!")
+  }
+
+  def createNewPlayer(input: PlayerInput): Player = {
+    new Player(
+      name = input.userName,
+      color = new Color(0.5f + Random.nextFloat() * 0.5f, 0.5f + Random.nextFloat() * 0.5f, 0.5f + Random.nextFloat() * 0.5f, 1.0f),
+      input = input,
+      position = Vec2()
+    )
+  }
+
+  def updatePlayers(dt: Double) = {
+    val inputs = networkInputSnapshots
+
+    // Handle new players
+    for ((name, input) <- inputs) {
+      if (!players.contains(name)) {
+        val newPlayer: Player = createNewPlayer(input.data)
+        players.put(name, newPlayer)
+        announceNewPlayer(newPlayer)
+      }
+    }
+
+    // Set player inputs
+    for ((name, input) <- inputs) {
+      players.get(name).foreach {
+        _.input = input.data
+      }
+    }
+
+    // Do movements
+    for ((name, player) <- players) {
+      player.position += player.velocity * dt
+    }
+
+     // Fire weapons
+    for ((name, player) <- players) {
+      // ..
+    }
+
+  }
+
+  def updateEnemies(dt: Double) = {
+
+    // Do random funky movements
+    for ((name, player) <- players) {
+      player.position += player.velocity * dt
+    }
+
+    // Fire weapons
+    for ((name, player) <- players) {
+      // ..
+    }
+  }
+
+
+  def removeAndAnnounceDeadStuff(dt: Double) = {
+  }
+
+  ///////////////////////////////////////
+
+
+  def drawGround(dt: Double) = {
+
+  }
+
+  def drawEnemies(dt: Double) = {
+
+  }
+
+  def drawPlayers(dt: Double): Unit = {
+
+  }
+
+  def drawGui(dt: Double) = {
+
+  }
+
   def cameraPos: Vec2 = {
-    val playerPositions = players.map(_.position)
+    val playerPositions = players.values.map(_.position)
     if (playerPositions.nonEmpty) {
       val minX = playerPositions.map(_.x).min
       val maxX = playerPositions.map(_.x).max
@@ -81,7 +149,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
 
   def cameraSize: Double = {
-    val playerPositions = players.map(_.position)
+    val playerPositions = players.values.map(_.position)
     if (playerPositions.nonEmpty) {
       val minX = playerPositions.map(_.x).min
       val maxX = playerPositions.map(_.x).max
@@ -93,17 +161,13 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     }
   }
 
-  def updatePlayers() = {
-  }
-
-  def updateEnemies() = {
-  }
-
-  def drawTitle() = {
+  def drawTitle(dt: Double) = {
     at((0.0, yTitle)) {
       s"The lost masons!".drawCentered(WHITE, scale = 3.0f)
     }
   }
+
+  ///////////////////////////////////////
 
   val yTitle = 0.625
 
@@ -115,4 +179,6 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   implicit val drawCfg = new GfxConfig {
     override def symbolScale: Double = 1.0
   }
+
+  @volatile private var networkInputSnapshots = Map.empty[String, DownloadedPlayerInput]
 }
