@@ -1,9 +1,11 @@
 package se.gigurra.thelostmasons
 
-import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.{Files, Gdx}
 import com.badlogic.gdx.audio.Music.OnCompletionListener
 import com.badlogic.gdx.audio.{Music, Sound}
+import com.badlogic.gdx.backends.lwjgl.LwjglFileHandle
 import com.badlogic.gdx.files.FileHandle
+
 import scala.collection.mutable
 
 object SoundPlayer {
@@ -13,10 +15,7 @@ object SoundPlayer {
   private var currentPlaylist = Seq[Music]()
 
   private def loadFile(name: String) : FileHandle = {
-    val fakeFile = new java.io.File(s"sounds/$name")
-    new FileHandle(fakeFile) {
-      override def read() = getClass.getClassLoader.getResourceAsStream(s"sounds/$name")
-    }
+    new LwjglFileHandle(s"sounds/$name", Files.FileType.Classpath)
   }
 
   private def loadNewEffect(effectName: String): Sound = {
