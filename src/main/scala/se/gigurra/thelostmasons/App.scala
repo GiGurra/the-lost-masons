@@ -27,7 +27,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
 
 
   override def create(): Unit = {
-    SoundPlayer.playOneOf(Seq("music1.mp3"))
+    SoundPlayer.setPlayList(Seq("music1.mp3"))
 
     DefaultTimer.fps(100) {
       downloadPlayerInputs()
@@ -155,7 +155,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     for (player <- players) {
       if (player.input.keysPressed.contains(Input.Keys.SPACE)) {
         player.tryFire {
-          SoundPlayer.playEffect("laser.mp3")
+          SoundPlayer.playOneOf(Seq("shoot1.mp3", "shoot2.mp3", "laser.mp3"))
           val bullet = Bullet(player, 3, WHITE, player.direction * 2, player.position + player.direction * 0.15 )
           entities.put(bullet.id, bullet)
         }
@@ -182,7 +182,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   def handleDeath(dt: Double) = {
     deathList.distinct.foreach { id =>
       entities.get(id).foreach( _ match {
-        case p: Player => SoundPlayer.playEffect("wilhelm_scream.mp3")
+        case p: Player => SoundPlayer.playOneOf(Seq("end1.mp3", "end2.mp3", "wilhelm_scream.mp3"))
         case _ =>
       })
     }
