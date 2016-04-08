@@ -12,10 +12,11 @@ object SoundPlayer {
   private val loadedMusics = new mutable.HashMap[String, Music]
   private var currentPlaylist = Seq[Music]()
 
-  private def loadFile(name: String) : FileHandle = {// Load the directory as a resource
-    val dir_url = ClassLoader.getSystemResource(s"sounds/$name")
-    val file = new java.io.File(dir_url.toURI)
-    new FileHandle(file)
+  private def loadFile(name: String) : FileHandle = {
+    val fakeFile = new java.io.File(s"sounds/$name")
+    new FileHandle(fakeFile) {
+      override def read() = getClass.getClassLoader.getResourceAsStream(s"sounds/$name")
+    }
   }
 
   private def loadNewEffect(effectName: String): Sound = {
@@ -36,17 +37,17 @@ object SoundPlayer {
     loadedMusics.getOrElseUpdate(musicName, loadNewMusic(musicName))
   }
 
-  def playEffect(effectName: String, volume: Double = 1.0): Unit = {
+  def playEffect(effectName: String, volume: Double = 0.1): Unit = {
     loadSound(effectName).play(volume.toFloat)
   }
 
-  def playOneOf(effectNames: Seq[String], volume: Double = 1.0): Unit = {
+  def playOneOf(effectNames: Seq[String], volume: Double = 0.1): Unit = {
     if (effectNames.nonEmpty) {
       playEffect(Utils.pickRandom(effectNames), volume)
     }
   }
 
-  def setPlayList(trackNames: Seq[String], shuffle: Boolean = false, volume: Double = 0.5): Unit = {
+  def setPlayList(trackNames: Seq[String], shuffle: Boolean = false, volume: Double = 0.1): Unit = {
 
     // Stop prevous sounds
     currentPlaylist.foreach(_.stop())
