@@ -1,7 +1,11 @@
 package se.gigurra.thelostmasons
 
-import se.gigurra.fingdx.lmath.Box
+import java.util.UUID
+
+import com.badlogic.gdx.graphics.Color
+import se.gigurra.fingdx.lmath.{Box, Vec2}
 import se.gigurra.serviceutils.twitter.logging.Logging
+
 import scala.collection.mutable
 
 case class SearchGrid[T <: Entity](_box: Box, nx: Int = 20, ny: Int = 20) extends Logging {
@@ -98,4 +102,38 @@ case class SearchGrid[T <: Entity](_box: Box, nx: Int = 20, ny: Int = 20) extend
 
   private def left: Double = box.left
   private def bottom: Double = box.left
+}
+
+object SearchGrid {
+
+  def mkPlayer(): Player = {
+    val name = UUID.randomUUID.toString
+    val position = Utils.randomVector * 2.0 * math.random
+    Player(name, Color.WHITE, PlayerInput(name, Set.empty[Int]), position)
+  }
+
+
+  def main(args: Array[String]): Unit = {
+    val n = 5000
+
+    val grid = SearchGrid[Entity](Box(4, 4))
+    val players = (0 until n).map(_ => mkPlayer())
+
+    players.foreach(grid.add)
+
+    require(grid.size == n)
+
+    grid.remove(players.head)
+
+    require(grid.size == n-1)
+
+    require(grid.getItemsNear(Box(1,1)).size > 5)
+    require(grid.getItemsNear(Box(1,1)).size < n)
+    require(grid.getItemsNear(Box(4,4)).size == n-1)
+    require(grid.getItemsNear(Box(4,4,Vec2(1.5,1.5))).size < n-1)
+
+    println(s"Items in grid: ${grid.size}")
+    println("OK!")
+
+  }
 }
