@@ -141,9 +141,14 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
   
   def drawGround(dt: Double) = {
-    for(x <- (-10 to 10)) {
-      for(y <- (-10 to 10)) {
-        rect(width = 1, height = 1, at = Vec2(x, y), typ = LINE, DARK_GRAY)
+    val positions = -(worldSize - 1) to worldSize
+    for(x <- positions) {
+      for(y <- positions) {
+        transform(_
+          .translate(x = -0.25f, y = -0.25f)
+          .scalexy(0.5)) {
+          rect(width = 1, height = 1, at = Vec2(x, y), typ = LINE, DARK_GRAY)
+        }
       }
     }
   }
