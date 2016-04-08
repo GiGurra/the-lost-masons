@@ -19,6 +19,9 @@ import scala.util.Random
 case class App(config: AppConfig, keyboardServer: RestClient) extends ApplicationAdapter with Logging {
 
   val players = new mutable.HashMap[String, Player]
+  val enemies = mutable.ArrayBuffer[Enemy]()
+
+  val worldSize = 4
 
   override def create(): Unit = {
     DefaultTimer.fps(100) {
@@ -30,6 +33,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     val dt = 1.0 / 60.0
     updatePlayers(dt)
     updateEnemies(dt)
+    clampToWorld()
     projection.viewport(viewportSize = cameraSize, offs = -cameraPos) {
       drawGround(dt)
       drawEnemies(dt)
@@ -55,6 +59,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
 
   def announceNewPlayer(newPlayer: Player): Unit = {
+    enemies += new Enemy(1, RED, Utils.randomVector)
     // Do something nice..
     logger.info(s"Player $newPlayer joined!")
   }
@@ -108,18 +113,22 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
 
   def updateEnemies(dt: Double) = {
-
-    // Do random funky movements
-    for ((name, player) <- players) {
-      player.position += player.velocity * dt
-    }
-
-    // Fire weapons
-    for ((name, player) <- players) {
-      // ..
+    val playerPositions = players.values.map(_.position)
+    for (enemy <- enemies) {
+      enemy.position += enemy.updateVelocity(playerPositions) * dt
     }
   }
 
+  def clampToWorld() = {
+    entities.foreach { e =>
+      e.position = Utils.clamp(lowerLeft, e.position, upperRight)
+    }
+  }
+
+  def lowerLeft: Vec2 = -0.5 * Vec2(worldSize, worldSize)
+  def upperRight: Vec2 = 0.5 * Vec2(worldSize, worldSize)
+
+  def entities: Iterable[Entity] = Seq(players.values, enemies).flatten
 
   def removeAndAnnounceDeadStuff(dt: Double) = {
   }
@@ -132,11 +141,19 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
   
   def drawGround(dt: Double) = {
-
+    for(x <- (-10 to 10)) {
+      for(y <- (-10 to 10)) {
+        rect(width = 1, height = 1, at = Vec2(x, y), typ = LINE, DARK_GRAY)
+      }
+    }
   }
 
   def drawEnemies(dt: Double) = {
-
+    for (enemy <- enemies) {
+      at(enemy.position) {
+        rect(0.1, 0.1, typ = FILL, color = enemy.color)
+      }
+    }
   }
 
   def drawPlayers(dt: Double): Unit = {
@@ -182,6 +199,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
       s"The lost masons!".drawCentered(WHITE, scale = 3.0f)
     }
   }
+
 
   ///////////////////////////////////////
 

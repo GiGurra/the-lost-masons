@@ -3,13 +3,19 @@ package se.gigurra.thelostmasons
 import com.badlogic.gdx.graphics.Color
 import se.gigurra.fingdx.lmath.Vec2
 
+trait Entity {
+  def velocity: Vec2
+  var position: Vec2
+  def color: Color
+}
+
 /**
   * Created by kjolh on 4/6/2016.
   */
 case class Player(name: String,
                   color: Color,
                   var input: PlayerInput,
-                  var position: Vec2) {
+                  var position: Vec2) extends Entity {
 
   val maxSpeed = 0.75
 
