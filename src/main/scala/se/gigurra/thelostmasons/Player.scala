@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.Color
 import se.gigurra.fingdx.lmath.{Box, Vec2}
 
 trait Entity {
+  def scoreValue: Int
   def velocity: Vec2
   var position: Vec2
   def color: Color
@@ -28,6 +29,7 @@ case class Player(name: String,
   var lastFired = PassiveTimer(0.1)
   var direction = Vec2(1, 0)
   var velocity: Vec2 = Vec2(0, 0)
+  val scoreValue = -1
 
   def tryFire(f: => Unit) = lastFired.executeIfTime(f)
 

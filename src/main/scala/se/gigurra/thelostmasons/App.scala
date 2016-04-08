@@ -7,7 +7,7 @@ import com.twitter.util.{Duration, Future, NonFatal}
 import se.gigurra.fingdx.util.{DefaultTimer, RestClient, Throttled}
 import se.gigurra.serviceutils.twitter.logging.Logging
 import se.gigurra.fingdx.gfx.RenderContext._
-import se.gigurra.fingdx.gfx.{GfxConfig, RenderCenter, World2DProjection}
+import se.gigurra.fingdx.gfx.{ScreenProjection, GfxConfig, RenderCenter, World2DProjection}
 import se.gigurra.fingdx.lmath.{Vec2, Vec3}
 
 import scala.collection.mutable
@@ -27,6 +27,8 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
 
 
   override def create(): Unit = {
+    SoundPlayer.playMusic("music1.mp3")
+
     DefaultTimer.fps(100) {
       downloadPlayerInputs()
     }
@@ -49,7 +51,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
       drawGui(dt)
       drawScore(dt)
     }
-    removeAndAnnounceDeadStuff(dt)
+    handleDeath(dt)
   }
 
   ///////////////////////////////////////
@@ -92,6 +94,8 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     } {
       killEntity(e1)
       killEntity(e2)
+
+
 
       for {
         bulletHit <- Utils.asBulletOpt(e1)
@@ -137,13 +141,13 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     import Utils.RichBoundingBox
 
     enemySpawn.executeIfTime {
-      val enemy = new Enemy(1, RED, Utils.randomVector)
+      val enemy = new Enemy(0.7, RED, 1, Utils.randomVector)
       entities.put(enemy.id, enemy)
     }
 
     val playerPositions = players.map(_.position)
     for (enemy <- enemies) {
-      enemy.updateVelocity(playerPositions) * dt
+      enemy.updateVelocity(playerPositions.toSeq) * dt
     }
   }
 
@@ -151,6 +155,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     for (player <- players) {
       if (player.input.keysPressed.contains(Input.Keys.SPACE)) {
         player.tryFire {
+          SoundPlayer.playEffect("laser.mp3")
           val bullet = Bullet(player, 3, WHITE, player.direction * 2, player.position + player.direction * 0.15 )
           entities.put(bullet.id, bullet)
         }
@@ -174,7 +179,14 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   def players: Iterable[Player] = entities.values.collect { case p: Player => p }
   def playersAndEnemies: Iterable[Entity] = players ++ enemies
 
-  def removeAndAnnounceDeadStuff(dt: Double) = {
+  def handleDeath(dt: Double) = {
+    deathList.distinct.foreach { id =>
+      entities.get(id).foreach( _ match {
+        case p: Player => SoundPlayer.playEffect("wilhelm_scream.mp3")
+        case _ =>
+      })
+    }
+
     deathList.foreach(entities.remove(_))
     deathList.clear()
   }
@@ -255,10 +267,15 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
 
   def drawScore(dt: Double) = {
-    at((-0.9, -0.9)) {
+    at((-0.95, 0.95)) {
       val scoreBoard = players.map(p => s"${p.id.padRight(10).take(10)} ${p.score.padRight(4)}").mkString("\n")
-      scoreBoard.drawCentered(WHITE, scale = 2.0f)
-    }
+      scoreBoard.drawRightOf(WHITE, scale = 2.0f)
+    } (new ScreenProjection(
+      new RenderCenter() {
+        override def position: Vec3 = Vec3(0,0,0)
+        override def heading: Double = 0
+      }
+    ))
   }
 
 

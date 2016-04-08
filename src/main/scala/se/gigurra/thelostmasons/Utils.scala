@@ -42,4 +42,11 @@ object Utils {
       case _ => None
     }
   }
+
+  def asPlayerOpt(e: Entity): Option[Player] = {
+    e match {
+      case b: Player => Some(b)
+      case _ => None
+    }
+  }
 }
