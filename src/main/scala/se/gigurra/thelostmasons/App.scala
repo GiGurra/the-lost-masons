@@ -61,7 +61,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
       case e: Throttled =>
       case e: FailedFastException =>
       case NonFatal(e) => logger.error(e, s"Failed to communicate with keyboard server")
-    }.map(_ => ())
+    }.unit
   }
 
   def announceNewPlayer(newPlayer: Player): Unit = {
