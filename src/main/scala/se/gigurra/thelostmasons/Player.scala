@@ -1,12 +1,17 @@
 package se.gigurra.thelostmasons
 
+import java.util.UUID
+
 import com.badlogic.gdx.graphics.Color
-import se.gigurra.fingdx.lmath.Vec2
+import se.gigurra.fingdx.lmath.{Box, Vec2}
 
 trait Entity {
   def velocity: Vec2
   var position: Vec2
   def color: Color
+  def radius: Double = 0.05
+  val id: String = UUID.randomUUID.toString
+  def boundingBox: Box = Box(width = radius * 2, height = radius * 2, position)
 }
 
 /**
