@@ -97,6 +97,14 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
       // ..
     }
 
+    // Remove timed out players
+    for ((name, player) <- players.toSeq.reverse) {
+      if (!inputs.contains(name)) {
+        players -= name
+        announcePlayerLeft(player)
+      }
+    }
+
   }
 
   def updateEnemies(dt: Double) = {
@@ -119,6 +127,10 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   ///////////////////////////////////////
 
 
+  def announcePlayerLeft(player: Player) = {
+    logger.info(s"Player $player left")
+  }
+  
   def drawGround(dt: Double) = {
 
   }
