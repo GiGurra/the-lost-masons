@@ -38,6 +38,7 @@ object SoundPlayer {
     playingMusic = None
     playingMusic = Some(loadNewMusic(track))
     playingMusic.foreach(_.setVolume(volume.toFloat))
+    playingMusic.foreach(_.setLooping(true))
     playingMusic.foreach(_.play())
   }
 
