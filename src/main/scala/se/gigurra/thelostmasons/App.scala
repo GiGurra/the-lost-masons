@@ -27,7 +27,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
 
 
   override def create(): Unit = {
-    SoundPlayer.playMusic("music1.mp3")
+    SoundPlayer.playOneOf(Seq("music1.mp3"))
 
     DefaultTimer.fps(100) {
       downloadPlayerInputs()

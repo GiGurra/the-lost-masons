@@ -4,6 +4,7 @@ package se.gigurra.thelostmasons
 import se.gigurra.fingdx.lmath.{Box, Vec2}
 
 import scala.reflect.ClassTag
+import scala.util.Random
 
 object Utils {
   implicit class RichBoundingBox(box: Box) {
@@ -43,10 +44,8 @@ object Utils {
     }
   }
 
-  def asPlayerOpt(e: Entity): Option[Player] = {
-    e match {
-      case b: Player => Some(b)
-      case _ => None
-    }
+  def pickRandom[T](items: Seq[T]): T = {
+    require(items.nonEmpty, "Cannot pick a random element from empty collection!")
+    items.apply(Random.nextInt(items.size))
   }
 }
