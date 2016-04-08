@@ -37,17 +37,17 @@ object SoundPlayer {
     loadedMusics.getOrElseUpdate(musicName, loadNewMusic(musicName))
   }
 
-  def playEffect(effectName: String, volume: Double = 0.1): Unit = {
+  def playEffect(effectName: String, volume: Double = 0.25): Unit = {
     loadSound(effectName).play(volume.toFloat)
   }
 
-  def playOneOf(effectNames: Seq[String], volume: Double = 0.1): Unit = {
+  def playOneOf(effectNames: Seq[String], volume: Double = 0.25): Unit = {
     if (effectNames.nonEmpty) {
       playEffect(Utils.pickRandom(effectNames), volume)
     }
   }
 
-  def setPlayList(trackNames: Seq[String], shuffle: Boolean = false, volume: Double = 0.1): Unit = {
+  def setPlayList(trackNames: Seq[String], shuffle: Boolean = false, volume: Double = 0.25): Unit = {
 
     // Stop prevous sounds
     currentPlaylist.foreach(_.stop())
