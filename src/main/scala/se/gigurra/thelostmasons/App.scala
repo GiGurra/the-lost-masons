@@ -1,6 +1,6 @@
 package se.gigurra.thelostmasons
 
-import com.badlogic.gdx.ApplicationAdapter
+import com.badlogic.gdx.{Input, ApplicationAdapter}
 import com.badlogic.gdx.graphics.Color
 import com.twitter.finagle.FailedFastException
 import com.twitter.util.{Duration, Future, NonFatal}
@@ -11,6 +11,7 @@ import se.gigurra.fingdx.gfx.{GfxConfig, RenderCenter, World2DProjection}
 import se.gigurra.fingdx.lmath.{Vec2, Vec3}
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 /**
@@ -18,10 +19,12 @@ import scala.util.Random
   */
 case class App(config: AppConfig, keyboardServer: RestClient) extends ApplicationAdapter with Logging {
 
-  val players = new mutable.HashMap[String, Player]
-  val enemies = mutable.ArrayBuffer[Enemy]()
+  val entities = new mutable.HashMap[String, Entity]
+  val deathList = new ArrayBuffer[String]()
 
   val worldSize = 4
+  var enemySpawn = PassiveTimer(1)
+
 
   override def create(): Unit = {
     DefaultTimer.fps(100) {
@@ -33,15 +36,18 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     val dt = 1.0 / 60.0
     updatePlayers(dt)
     updateEnemies(dt)
+    updateBullets(dt)
+    updateEntities(dt)
     clampToWorld()
     projection.viewport(viewportSize = cameraSize, offs = -cameraPos) {
       drawGround(dt)
       drawEnemies(dt)
+      drawBullets(dt)
       drawPlayers(dt)
     }
     projection.viewport(viewportSize = 2.0, offs = Vec2()) {
       drawGui(dt)
-      drawTitle(dt)
+      drawScore(dt)
     }
     removeAndAnnounceDeadStuff(dt)
   }
@@ -59,7 +65,6 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
 
   def announceNewPlayer(newPlayer: Player): Unit = {
-    enemies += new Enemy(1, RED, Utils.randomVector)
     // Do something nice..
     logger.info(s"Player $newPlayer joined!")
   }
@@ -73,39 +78,55 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     )
   }
 
+  def updateEntities(dt: Double) = {
+    import Utils.RichBoundingBox
+    // Do movements
+    for ((name, entity) <- entities) {
+      entity.position += entity.velocity * dt
+    }
+
+    for {
+      e1 <- entities.values
+      e2 <- entities.values
+      if !Utils.sameEntityType(e1, e2) && e1.id != e2.id && e1.boundingBox.overlap(e2.boundingBox)
+    } {
+      killEntity(e1)
+      killEntity(e2)
+
+      for {
+        bulletHit <- Utils.asBulletOpt(e1)
+        killer    <- bulletHit.parentPlayer
+      } {
+        killer.score += 1
+      }
+    }
+  }
+
+  def killEntity(entity: Entity) = deathList += entity.id
+
   def updatePlayers(dt: Double) = {
     val inputs = networkInputSnapshots
 
     // Handle new players
     for ((name, input) <- inputs) {
-      if (!players.contains(name)) {
+      if (!entities.contains(name)) {
         val newPlayer: Player = createNewPlayer(input.data)
-        players.put(name, newPlayer)
+        entities.put(name, newPlayer)
         announceNewPlayer(newPlayer)
       }
     }
 
     // Set player inputs
     for ((name, input) <- inputs) {
-      players.get(name).foreach {
-        _.input = input.data
+      entities.get(name).collect { case p: Player =>
+        p.setInput(input.data)
       }
     }
 
-    // Do movements
-    for ((name, player) <- players) {
-      player.position += player.velocity * dt
-    }
-
-     // Fire weapons
-    for ((name, player) <- players) {
-      // ..
-    }
-
     // Remove timed out players
-    for ((name, player) <- players.toSeq.reverse) {
-      if (!inputs.contains(name)) {
-        players -= name
+    for (player <- players.toSeq.reverse) {
+      if (!inputs.contains(player.id)) {
+        killEntity(player)
         announcePlayerLeft(player)
       }
     }
@@ -113,14 +134,34 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
 
   def updateEnemies(dt: Double) = {
-    val playerPositions = players.values.map(_.position)
+    import Utils.RichBoundingBox
+
+    enemySpawn.executeIfTime {
+      val enemy = new Enemy(1, RED, Utils.randomVector)
+      entities.put(enemy.id, enemy)
+    }
+
+    val playerPositions = players.map(_.position)
     for (enemy <- enemies) {
-      enemy.position += enemy.updateVelocity(playerPositions) * dt
+      enemy.updateVelocity(playerPositions) * dt
     }
   }
 
+  def updateBullets(dt: Double) = {
+    for (player <- players) {
+      if (player.input.keysPressed.contains(Input.Keys.SPACE)) {
+        player.tryFire {
+          val bullet = Bullet(player, 3, WHITE, player.direction * 2, player.position + player.direction * 0.15 )
+          entities.put(bullet.id, bullet)
+        }
+      }
+    }
+
+    bullets.filter(b => b.maxDistance < b.traveledDistance).foreach(deathList += _.id)
+  }
+
   def clampToWorld() = {
-    entities.foreach { e =>
+    playersAndEnemies.foreach { e =>
       e.position = Utils.clamp(lowerLeft, e.position, upperRight)
     }
   }
@@ -128,9 +169,14 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   def lowerLeft: Vec2 = -0.5 * Vec2(worldSize, worldSize)
   def upperRight: Vec2 = 0.5 * Vec2(worldSize, worldSize)
 
-  def entities: Iterable[Entity] = Seq(players.values, enemies).flatten
+  def enemies: Iterable[Enemy] = entities.values.collect { case e: Enemy => e }
+  def bullets: Iterable[Bullet] = entities.values.collect { case b: Bullet => b }
+  def players: Iterable[Player] = entities.values.collect { case p: Player => p }
+  def playersAndEnemies: Iterable[Entity] = players ++ enemies
 
   def removeAndAnnounceDeadStuff(dt: Double) = {
+    deathList.foreach(entities.remove(_))
+    deathList.clear()
   }
 
   ///////////////////////////////////////
@@ -139,7 +185,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   def announcePlayerLeft(player: Player) = {
     logger.info(s"Player $player left")
   }
-  
+
   def drawGround(dt: Double) = {
     val positions = -(worldSize - 1) to worldSize
     for(x <- positions) {
@@ -161,8 +207,16 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     }
   }
 
+  def drawBullets(dt: Double) = {
+    for (bullet <- bullets) {
+      at(bullet.position) {
+        circle(0.01,10, FILL, bullet.color)
+      }
+    }
+  }
+
   def drawPlayers(dt: Double): Unit = {
-    for ((name, player) <- players) {
+    for (player <- players) {
       at(player.position) {
         rect(0.1, 0.1, typ = FILL, color = player.color)
       }
@@ -174,7 +228,7 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
 
   def cameraPos: Vec2 = {
-    val playerPositions = players.values.map(_.position)
+    val playerPositions = players.map(_.position)
     if (playerPositions.nonEmpty) {
       val minX = playerPositions.map(_.x).min
       val maxX = playerPositions.map(_.x).max
@@ -187,7 +241,8 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
   }
 
   def cameraSize: Double = {
-    val playerPositions = players.values.map(_.position)
+
+    val playerPositions = players.map(_.position)
     if (playerPositions.nonEmpty) {
       val minX = playerPositions.map(_.x).min
       val maxX = playerPositions.map(_.x).max
@@ -199,9 +254,10 @@ case class App(config: AppConfig, keyboardServer: RestClient) extends Applicatio
     }
   }
 
-  def drawTitle(dt: Double) = {
-    at((0.0, yTitle)) {
-      s"The lost masons!".drawCentered(WHITE, scale = 3.0f)
+  def drawScore(dt: Double) = {
+    at((-0.9, -0.9)) {
+      val scoreBoard = players.map(p => s"${p.id.padRight(10).take(10)} ${p.score.padRight(4)}").mkString("\n")
+      scoreBoard.drawCentered(WHITE, scale = 2.0f)
     }
   }
 

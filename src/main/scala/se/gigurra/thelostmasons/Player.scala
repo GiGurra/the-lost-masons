@@ -20,11 +20,25 @@ trait Entity {
 case class Player(name: String,
                   color: Color,
                   var input: PlayerInput,
-                  var position: Vec2) extends Entity {
+                  var position: Vec2,
+                  var score: Int = 0) extends Entity {
 
+  override val id = name
   val maxSpeed = 0.75
+  var lastFired = PassiveTimer(0.1)
+  var direction = Vec2(1, 0)
+  var velocity: Vec2 = Vec2(0, 0)
 
-  def velocity: Vec2 = keys2Velocity(input.keysPressed) * maxSpeed
+  def tryFire(f: => Unit) = lastFired.executeIfTime(f)
+
+  def setInput(input: PlayerInput) = {
+    this.input = input
+    velocity = keys2Velocity(input.keysPressed)
+
+    if (velocity.norm > 0.001) {
+      direction = velocity.normalized
+    }
+  }
 
   def keys2Velocity(keys: Set[Int]): Vec2 = {
     import com.badlogic.gdx.Input.Keys._
@@ -37,7 +51,11 @@ case class Player(name: String,
       out += Vec2(0.0, 1.0)
     if (keys.contains(DOWN))
       out += Vec2(0.0, -1.0)
-    out
+
+    if (out.norm > 0.001)
+      out = out.normalized
+
+    out * maxSpeed
   }
 
 }
