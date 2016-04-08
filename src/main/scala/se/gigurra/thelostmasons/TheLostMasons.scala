@@ -57,7 +57,7 @@ object TheLostMasons extends Logging {
   def getLwjglConfig(args: Array[String]): LwjglApplicationConfiguration = {
     new LwjglApplicationConfiguration {
       title = "The Lost Masons"
-      forceExit = false
+      forceExit = true
       vSyncEnabled = true
       width = 1280
       height = 720
